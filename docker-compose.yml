@@ -19,7 +19,9 @@ services:
       retries: 5
 
   api:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: thinktank-api
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
     volumes:
