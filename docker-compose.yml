@@ -28,11 +28,12 @@ services:
       - ./backend:/app
       - /app/__pycache__
       - model-cache:/models
+      - jwt-data:/data
     ports:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://ai:aipass@db:5432/thinktank
-      - JWT_SECRET=${JWT_SECRET:-thinktank-jwt-secret-change-in-production}
+      - JWT_SECRET=${JWT_SECRET}
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_BASE_URL=${LLM_BASE_URL:-https://api.moonshot.cn/v1}
       - LLM_MODEL=${LLM_MODEL:-moonshot-v1-8k}
@@ -45,3 +46,4 @@ services:
 volumes:
   pgdata:
   model-cache:
+  jwt-data:
