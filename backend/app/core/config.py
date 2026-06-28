@@ -13,6 +13,7 @@ class Settings:
     CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "100"))
     TOP_K = int(os.getenv("TOP_K", "5"))
     SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.7"))
+    JWT_SECRET = os.getenv("JWT_SECRET", "thinktank-jwt-secret-change-in-production")
 
 @lru_cache()
 def get_settings():

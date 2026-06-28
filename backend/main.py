@@ -1,19 +1,49 @@
 import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.db.database import engine, Base
-from app.routers import documents, chat
 
-Base.metadata.create_all(bind=engine)
+from app.db.database import engine, Base, SessionLocal
+from app.routers import documents, chat, auth
+from app.models.user import User
+from app.core.config import settings
+from passlib.context import CryptContext
+
+
+def seed_admin():
+    """启动时确保默认管理员 admin/admin 存在。"""
+    db = SessionLocal()
+    try:
+        admin = db.query(User).filter(User.username == "admin").first()
+        if not admin:
+            pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+            admin = User(
+                username="admin",
+                hashed_password=pwd_context.hash("admin"),
+                is_admin=True,
+            )
+            db.add(admin)
+            db.commit()
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    seed_admin()
+    yield
+
 
 app = FastAPI(
     title="Think Tank",
     description="企业本地知识库 RAG 服务",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
-# CORS 仅在开发时需要（生产由同端口托管，不需要）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,22 +52,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.middleware("http")
 async def auth_middleware(request, call_next):
-    # 静态文件、文档、健康检查不需要认证
+    # 静态文件、文档、健康检查、登录接口不需要认证
+    public_paths = {"/docs", "/openapi.json", "/health"}
+    if request.url.path in public_paths or request.url.path.startswith("/api/v1/auth/"):
+        return await call_next(request)
+
     if not request.url.path.startswith("/api/"):
         return await call_next(request)
+
+    # 优先检查 JWT Bearer token
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        from jose import jwt as jose_jwt
+        try:
+            token = auth_header.removeprefix("Bearer ")
+            payload = jose_jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+            # token 有效则放行
+            return await call_next(request)
+        except Exception:
+            pass
+
+    # 兼容旧的 X-API-Key 方式
     api_key = request.headers.get("X-API-Key")
-    if api_key != os.getenv("API_SECRET", "default"):
-        from fastapi.responses import JSONResponse
-        return JSONResponse(status_code=403, content={"detail": "Invalid API Key"})
-    return await call_next(request)
+    if api_key and api_key == os.getenv("API_SECRET", "default"):
+        return await call_next(request)
+
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=403, content={"detail": "未授权访问"})
+
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
+
 # API 路由必须在 StaticFiles mount 之前注册
+app.include_router(auth.router, prefix="/api/v1")
 app.include_router(documents.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
 

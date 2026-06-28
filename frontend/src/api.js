@@ -1,24 +1,33 @@
 const BASE = '/api/v1'
 
-function headers() {
-  const key = localStorage.getItem('api_key') || ''
-  return { 'X-API-Key': key, 'Content-Type': 'application/json' }
+function authHeaders() {
+  const headers = { 'Content-Type': 'application/json' }
+  const token = localStorage.getItem('token')
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  return headers
 }
 
 export async function uploadFile(file) {
   const form = new FormData()
   form.append('file', file)
+  const headers = {}
+  const token = localStorage.getItem('token')
+  if (token) headers['Authorization'] = `Bearer ${token}`
   const res = await fetch(`${BASE}/documents/upload`, {
     method: 'POST',
-    headers: { 'X-API-Key': localStorage.getItem('api_key') || '' },
+    headers,
     body: form,
   })
+  if (res.status === 401) { window.location.href = '/login'; return }
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
 export async function listDocuments() {
-  const res = await fetch(`${BASE}/documents/`, { headers: headers() })
+  const res = await fetch(`${BASE}/documents/`, { headers: authHeaders() })
+  if (res.status === 401) { window.location.href = '/login'; return [] }
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
@@ -26,19 +35,24 @@ export async function listDocuments() {
 export async function deleteDocument(id) {
   const res = await fetch(`${BASE}/documents/${id}`, {
     method: 'DELETE',
-    headers: headers(),
+    headers: authHeaders(),
   })
+  if (res.status === 401) { window.location.href = '/login'; return }
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
 export function chatStream(query, onSource, onChunk, onDone, onError) {
-  const key = localStorage.getItem('api_key') || ''
+  const token = localStorage.getItem('token')
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
   return fetch(`${BASE}/chat/stream`, {
     method: 'POST',
-    headers: { 'X-API-Key': key, 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ query }),
   }).then(async (response) => {
+    if (response.status === 401) { window.location.href = '/login'; return }
     if (!response.ok) { onError(`HTTP ${response.status}`); return }
     const reader = response.body.getReader()
     const decoder = new TextDecoder()

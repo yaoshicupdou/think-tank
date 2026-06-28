@@ -42,7 +42,12 @@ docker compose up -d
 
 ### 3. 访问
 
-浏览器打开 **http://localhost:8000**，在侧边栏左下角「设置 API Key」中输入 `.env` 中设置的 `API_SECRET`。
+浏览器打开 **http://localhost:8000**，跳转到登录页，使用默认账户：
+
+- 用户名：`admin`
+- 密码：`admin`
+
+登录后获得 24 小时有效的 JWT Token，侧边栏显示当前用户名。
 
 ---
 
@@ -50,7 +55,8 @@ docker compose up -d
 
 | 地址 | 页面 | 说明 |
 |---|---|---|
-| `/` | 自动跳转 | 重定向到 `/chat` |
+| `/` | 自动跳转 | 未登录重定向到 `/login`，已登录跳转 `/chat` |
+| `/login` | 登录页 | 用户名/密码登录 |
 | `/chat` | 知识库对话 | 基于已上传文档的 RAG 问答 |
 | `/documents` | 文档管理 | 上传、查看、删除文档 |
 | `/docs` | Swagger API 文档 | 无需认证 |
@@ -60,12 +66,49 @@ docker compose up -d
 
 ## API 接口
 
-### 认证方式
+### 认证
 
-除 `/docs`、`/openapi.json`、`/health` 外，所有 `/api/` 路径的请求需要在 Header 中携带：
+用户体系基于 JWT。除 `/docs`、`/openapi.json`、`/health`、`/api/v1/auth/login` 外，所有 `/api/` 路径需要认证，支持两种方式（优先级从高到低）：
+
+**方式一：JWT Bearer Token（推荐）**
+
+```
+Authorization: Bearer <access_token>
+```
+
+Token 通过登录接口获取，有效期 24 小时。
+
+**方式二：API Key（兼容旧版）**
 
 ```
 X-API-Key: <API_SECRET>
+```
+
+### 登录
+
+```
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{ "username": "admin", "password": "admin" }
+```
+
+成功返回：
+
+```json
+{
+  "access_token": "eyJhbG...",
+  "token_type": "bearer",
+  "username": "admin",
+  "is_admin": true
+}
+```
+
+### 当前用户
+
+```
+GET /api/v1/auth/me
+Authorization: Bearer <access_token>
 ```
 
 ### 文档管理
@@ -162,7 +205,8 @@ GET /health
 | 变量 | 默认值 | 说明 |
 |---|---|---|
 | `DATABASE_URL` | `postgresql://ai:aipass@db:5432/thinktank` | PostgreSQL 连接串 |
-| `API_SECRET` | `dev-key` | API 认证密钥 |
+| `API_SECRET` | `dev-key` | API Key 认证密钥（兼容旧版） |
+| `JWT_SECRET` | `thinktank-jwt-secret-...` | JWT 签名密钥，生产环境务必修改 |
 | `LLM_API_KEY` | — | **必填**，Kimi/Moonshot API Key |
 | `LLM_BASE_URL` | `https://api.moonshot.cn/v1` | LLM API 地址 |
 | `LLM_MODEL` | `moonshot-v1-8k` | 模型名称 |
@@ -241,7 +285,8 @@ BGE-M3 模型在 Docker 构建时预下载到 `/models`，通过 `model-cache` v
 
 | 问题 | 排查方向 |
 |---|---|
-| 403 Invalid API Key | 检查侧边栏 API Key 是否与 `API_SECRET` 一致 |
+| 401 / 403 未授权 | 检查是否已登录，Token 是否过期（重新登录即可） |
+| 无法登录 | 默认账户 admin/admin，确认数据库已初始化 |
 | 文档一直 pending | 检查 api 容器日志，可能 LLM_API_KEY 未设置导致向量化失败 |
 | LLM 返回错误 | 检查 `LLM_API_KEY` 和 `LLM_BASE_URL` 是否正确 |
 | 检索无结果 | 调低 `SIMILARITY_THRESHOLD`（如 0.5），或增大 `TOP_K` |
@@ -281,10 +326,13 @@ think-tank/
 │       ├── core/config.py       # 环境变量配置
 │       ├── core/exceptions.py   # 全局异常处理
 │       ├── db/database.py       # SQLAlchemy 连接
-│       ├── models/document.py   # Document + Chunk 模型
+│       ├── models/
+│       │   ├── document.py     # Document + Chunk 模型
+│       │   └── user.py         # User 模型
 │       ├── routers/
-│       │   ├── documents.py     # 文档 CRUD + 上传
-│       │   └── chat.py          # SSE 流式对话
+│       │   ├── auth.py         # 登录 + JWT
+│       │   ├── documents.py    # 文档 CRUD + 上传
+│       │   └── chat.py         # SSE 流式对话
 │       ├── schemas/document.py  # Pydantic 模型
 │       └── services/
 │           ├── parser.py        # 文件解析（PDF/TXT/MD/DOCX）
@@ -298,6 +346,7 @@ think-tank/
 │       ├── App.jsx              # 布局 + 路由 + 侧边栏
 │       ├── api.js               # API 封装 + SSE 流
 │       └── pages/
+│           ├── Login.jsx        # 登录页
 │           ├── Documents.jsx    # 文档管理页
 │           └── Chat.jsx         # 对话页
 ├── docker-compose.yml
