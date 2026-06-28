@@ -59,6 +59,7 @@ docker compose up -d
 | `/login` | 登录页 | 用户名/密码登录 |
 | `/chat` | 知识库对话 | 基于已上传文档的 RAG 问答 |
 | `/documents` | 文档管理 | 上传、查看、删除文档 |
+| `/settings` | 用户设置 | 修改用户名和密码 |
 | `/docs` | Swagger API 文档 | 无需认证 |
 | `/health` | 健康检查 | 返回 `{"status":"ok"}` |
 
@@ -102,6 +103,30 @@ Content-Type: application/json
 GET /api/v1/auth/me
 Authorization: Bearer <access_token>
 ```
+
+### 修改用户名
+
+```
+PUT /api/v1/auth/profile
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{ "username": "新用户名" }
+```
+
+返回新的 access_token（因为 JWT 中用户名变了）。
+
+### 修改密码
+
+```
+PUT /api/v1/auth/password
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{ "old_password": "旧密码", "new_password": "新密码" }
+```
+
+密码修改成功后需用新密码重新登录。
 
 ### 文档管理
 

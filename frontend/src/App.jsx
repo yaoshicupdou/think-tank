@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
-import { FileText, MessageSquare, Brain, LogOut, User } from 'lucide-react'
+import { FileText, MessageSquare, Brain, LogOut, User, Settings } from 'lucide-react'
 import Documents from './pages/Documents'
 import Chat from './pages/Chat'
 import Login from './pages/Login'
+import SettingsPage from './pages/Settings'
 
 function isLoggedIn() {
   return !!localStorage.getItem('token')
@@ -26,7 +27,7 @@ function Sidebar({ open, onClose }) {
     window.location.href = '/login'
   }
 
-  const links = [
+  const mainLinks = [
     { to: '/documents', icon: FileText, label: '文档管理' },
     { to: '/chat', icon: MessageSquare, label: '知识库对话' },
   ]
@@ -52,7 +53,7 @@ function Sidebar({ open, onClose }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
-          {links.map(({ to, icon: Icon, label }) => (
+          {mainLinks.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
@@ -70,6 +71,23 @@ function Sidebar({ open, onClose }) {
             </NavLink>
           ))}
         </nav>
+
+        <div className="border-t border-gray-800 py-2">
+          <NavLink
+            to="/settings"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 mx-4 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                isActive
+                  ? 'bg-purple-500/15 text-purple-300 font-medium'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+              }`
+            }
+          >
+            <Settings className="w-4 h-4" />
+            用户设置
+          </NavLink>
+        </div>
 
         <div className="border-t border-gray-800 p-4">
           <button
@@ -103,6 +121,7 @@ function AppLayout() {
         <Routes>
           <Route path="/documents" element={<Documents />} />
           <Route path="/chat" element={<Chat />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/chat" replace />} />
         </Routes>
       </main>
