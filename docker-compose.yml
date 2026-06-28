@@ -32,7 +32,6 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://ai:aipass@db:5432/thinktank
-      - API_SECRET=${API_SECRET:-dev-key}
       - JWT_SECRET=${JWT_SECRET:-thinktank-jwt-secret-change-in-production}
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_BASE_URL=${LLM_BASE_URL:-https://api.moonshot.cn/v1}

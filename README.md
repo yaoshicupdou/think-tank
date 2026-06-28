@@ -27,7 +27,7 @@ cp .env.example .env
 
 ```ini
 LLM_API_KEY=sk-your-moonshot-api-key   # Kimi API 密钥
-API_SECRET=your-secret-key-here        # 自定义 API 访问密码
+JWT_SECRET=your-random-secret          # JWT 签名密钥（生产务必修改）
 ```
 
 其余配置项有默认值，见下方「环境变量」章节。
@@ -68,21 +68,13 @@ docker compose up -d
 
 ### 认证
 
-用户体系基于 JWT。除 `/docs`、`/openapi.json`、`/health`、`/api/v1/auth/login` 外，所有 `/api/` 路径需要认证，支持两种方式（优先级从高到低）：
-
-**方式一：JWT Bearer Token（推荐）**
+用户体系基于 JWT。除 `/docs`、`/openapi.json`、`/health`、`/api/v1/auth/login` 外，所有 `/api/` 路径需要在 Header 中携带：
 
 ```
 Authorization: Bearer <access_token>
 ```
 
 Token 通过登录接口获取，有效期 24 小时。
-
-**方式二：API Key（兼容旧版）**
-
-```
-X-API-Key: <API_SECRET>
-```
 
 ### 登录
 
@@ -205,7 +197,6 @@ GET /health
 | 变量 | 默认值 | 说明 |
 |---|---|---|
 | `DATABASE_URL` | `postgresql://ai:aipass@db:5432/thinktank` | PostgreSQL 连接串 |
-| `API_SECRET` | `dev-key` | API Key 认证密钥（兼容旧版） |
 | `JWT_SECRET` | `thinktank-jwt-secret-...` | JWT 签名密钥，生产环境务必修改 |
 | `LLM_API_KEY` | — | **必填**，Kimi/Moonshot API Key |
 | `LLM_BASE_URL` | `https://api.moonshot.cn/v1` | LLM API 地址 |

@@ -63,22 +63,16 @@ async def auth_middleware(request, call_next):
     if not request.url.path.startswith("/api/"):
         return await call_next(request)
 
-    # 优先检查 JWT Bearer token
+    # 验证 JWT Bearer token
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         from jose import jwt as jose_jwt
         try:
             token = auth_header.removeprefix("Bearer ")
-            payload = jose_jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
-            # token 有效则放行
+            jose_jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
             return await call_next(request)
         except Exception:
             pass
-
-    # 兼容旧的 X-API-Key 方式
-    api_key = request.headers.get("X-API-Key")
-    if api_key and api_key == os.getenv("API_SECRET", "default"):
-        return await call_next(request)
 
     from fastapi.responses import JSONResponse
     return JSONResponse(status_code=403, content={"detail": "未授权访问"})

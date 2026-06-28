@@ -3,7 +3,6 @@ from functools import lru_cache
 
 class Settings:
     DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://ai:aipass@db:5432/thinktank")
-    API_SECRET = os.getenv("API_SECRET", "default")
     UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads")
     LLM_API_KEY = os.getenv("LLM_API_KEY", "")
     LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.moonshot.cn/v1")
