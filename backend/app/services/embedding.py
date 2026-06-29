@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from typing import List
 from app.core.config import settings
@@ -7,11 +8,14 @@ class EmbeddingService:
     _model = None
 
     def __init__(self):
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
         from sentence_transformers import SentenceTransformer
         self._model = SentenceTransformer(
             "BAAI/bge-m3",
             cache_folder=settings.EMBEDDING_MODEL_PATH,
-            device="cpu"
+            device="cpu",
+            local_files_only=True,
         )
 
     @classmethod
