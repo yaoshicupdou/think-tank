@@ -11,7 +11,7 @@
 | 数据库 | PostgreSQL + pgvector（向量存储） |
 | LLM | Kimi (Moonshot)，兼容 OpenAI 格式 |
 | Embedding | BGE-M3（本地 CPU 推理，1024 维） |
-| 部署 | Docker Compose |
+| 部署 | Docker Compose / install.sh（裸机） |
 
 ---
 
@@ -48,6 +48,51 @@ docker compose up -d
 - 密码：`admin`
 
 登录后获得 24 小时有效的 JWT Token，侧边栏显示当前用户名。
+
+### 4. 一键部署脚本（无 Docker）
+
+> 适用于 Ubuntu 20.04+ / Debian 11+ 裸机部署，无需 Docker。
+
+```bash
+# 在目标服务器上以 root 执行
+curl -O https://gitee.com/yaoshicupdou/think-tank/raw/master/install.sh
+sudo bash install.sh
+```
+
+脚本会交互式询问：
+
+| 配置项 | 说明 |
+|--------|------|
+| LLM API Key | Kimi/Moonshot 密钥（必填） |
+| 数据库密码 | PostgreSQL 密码（可选，默认 aipass） |
+
+自动完成以下步骤：
+
+1. 安装系统依赖（PostgreSQL、Node.js 22.x、Python3、Nginx）
+2. 编译安装 pgvector 0.7.0
+3. 创建数据库和用户
+4. 安装 Python 依赖（CPU 版 PyTorch）
+5. 预下载 BGE-M3 嵌入模型（约 2GB）
+6. 构建前端
+7. 注册 systemd 服务（开机自启 + 崩溃自动重启）
+8. 配置 Nginx 反向代理（带 SSE 支持）
+9. 自动生成随机 JWT_SECRET
+
+部署完成后：
+
+```bash
+# 查看服务状态
+sudo systemctl status thinktank
+
+# 重启服务
+sudo systemctl restart thinktank
+
+# 查看实时日志
+sudo journalctl -u thinktank -f
+
+# 配置 HTTPS（可选）
+sudo certbot --nginx
+```
 
 ---
 
