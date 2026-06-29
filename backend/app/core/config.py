@@ -1,5 +1,13 @@
 import os
 from functools import lru_cache
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# 自动加载项目根目录的 .env 文件
+env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
 
 class Settings:
     DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://ai:aipass@db:5432/thinktank")
