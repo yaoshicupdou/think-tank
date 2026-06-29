@@ -91,4 +91,13 @@ app.include_router(chat.router, prefix="/api/v1")
 # SPA fallback: 前端静态文件（生产模式）
 frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.isdir(frontend_dist):
-    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="static")
+    app.mount("/", StaticFiles(directory=frontend_dist), name="static")
+
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+    from fastapi.responses import FileResponse, JSONResponse
+
+    @app.exception_handler(StarletteHTTPException)
+    async def spa_handler(request, exc):
+        if exc.status_code == 404 and not request.url.path.startswith("/api/"):
+            return FileResponse(os.path.join(frontend_dist, "index.html"))
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
