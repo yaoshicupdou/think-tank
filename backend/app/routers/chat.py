@@ -7,12 +7,21 @@ from app.schemas.document import ChatRequest
 from app.services.retriever import Retriever
 from app.services.llm import LLMService
 
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("chat")
+
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 @router.post("/stream")
 async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
     retriever = Retriever(db)
     results = retriever.search(request.query, top_k=5)
+
+    # 调试日志
+    logger.info(f"查询: {request.query}")
+    for i, r in enumerate(results):
+        logger.info(f"  chunk[{i}] doc={r['chunk'].document.filename} sim={r['similarity']:.4f} content={r['chunk'].content[:200]}")
 
     # 在生成器外查完结果，关闭 db 会话后不再访问数据库
     sources = []
