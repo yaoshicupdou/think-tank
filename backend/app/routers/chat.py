@@ -16,7 +16,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 @router.post("/stream")
 async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
     retriever = Retriever(db)
-    results = retriever.search(request.query, top_k=5)
+    results = retriever.search(request.query)
 
     # 调试日志
     logger.info(f"查询: {request.query}")
@@ -39,10 +39,11 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
         "你是一个企业知识库助手，只能基于以下参考资料回答用户问题。"
         "如果资料中没有答案，请明确说明'根据现有资料无法回答'。"
         "\n\n严格规则（必须遵守）："
-        "\n1. 禁止使用外部常识或行业惯例进行推断。参考资料未写明的内容，一律视为未知"
-        "\n2. 对于日期计算问题，必须同时从资料中找到明确的起止时间和明确的时间跨度，缺一不可"
-        "\n3. 例如：只找到'生效日期2025年1月1日'但未找到'保险期间一年'，则不得计算到期日"
-        "\n4. 不得使用'通常'、'一般'、'按惯例'等词做推测"
+        "\n1. 禁止使用外部常识或行业惯例进行推断"
+        "\n2. 保险单据中日期常以无标签格式散落在各片段，请仔细扫描所有片段中的日期信息"
+        "\n3. 保险期间的起止日期往往成对出现（如'自...起至...止'），或表现为两个相距约一年的日期"
+        "\n4. 常见模式：片段中出现两个精确到时分秒的日期，分别对应起保时间和到期时间"
+        "\n5. 不得使用'通常'、'一般'、'按惯例'等词做推测"
         "\n\n参考资料：\n" + "\n---\n".join(context_chunks)
     )
 

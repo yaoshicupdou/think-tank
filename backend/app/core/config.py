@@ -18,8 +18,8 @@ class Settings:
     EMBEDDING_MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH", "/models")
     CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "500"))
     CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "100"))
-    TOP_K = int(os.getenv("TOP_K", "5"))
-    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.7"))
+    TOP_K = int(os.getenv("TOP_K", "8"))
+    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.65"))
     JWT_SECRET = os.getenv("JWT_SECRET", "thinktank-jwt-secret-change-in-production")
 
 @lru_cache()
