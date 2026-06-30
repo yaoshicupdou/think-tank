@@ -31,15 +31,4 @@ class Retriever:
                     "similarity": round(float(similarity), 4)
                 })
 
-        # 去重：同一文档只取最相关的一个，但保证最少 top_k 个结果
-        seen_docs = set()
-        final = []
-        for item in filtered:
-            doc_id = item["chunk"].document_id
-            if doc_id not in seen_docs or len(final) < top_k:
-                final.append(item)
-                seen_docs.add(doc_id)
-            if len(final) >= top_k:
-                break
-
-        return final
+        return filtered[:top_k]
