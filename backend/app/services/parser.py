@@ -16,6 +16,25 @@ class Parser:
 
     def _parse_pdf(self, file_path: str) -> List[Dict]:
         try:
+            import pdfplumber
+        except ImportError:
+            return self._parse_pdf_fallback(file_path)
+
+        paragraphs = []
+        with pdfplumber.open(file_path) as pdf:
+            for page_idx, page in enumerate(pdf.pages):
+                text = page.extract_text()
+                if not text:
+                    continue
+                # pdfplumber 保留了空间布局，按空行分段
+                for para in text.split('\n\n'):
+                    para = para.strip()
+                    if para:
+                        paragraphs.append({"text": para, "page_num": page_idx + 1})
+        return paragraphs
+
+    def _parse_pdf_fallback(self, file_path: str) -> List[Dict]:
+        try:
             from pypdf import PdfReader
         except ImportError:
             from PyPDF2 import PdfReader
