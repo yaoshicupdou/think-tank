@@ -107,6 +107,10 @@ CHUNK_SIZE=500
 CHUNK_OVERLAP=100
 TOP_K=5
 SIMILARITY_THRESHOLD=0.7
+ENVIRONMENT=production
+COOKIE_SECURE=false
+LOGIN_RATE_LIMIT_MAX=5
+LOGIN_RATE_LIMIT_WINDOW=300
 EOF
 
 mkdir -p "$PROJECT_DIR/models" "$PROJECT_DIR/uploads"
@@ -150,6 +154,10 @@ Environment="LLM_BASE_URL=https://api.moonshot.cn/v1"
 Environment="LLM_MODEL=moonshot-v1-8k"
 Environment="EMBEDDING_MODEL_PATH=${PROJECT_DIR}/models"
 Environment="UPLOAD_DIR=${PROJECT_DIR}/uploads"
+Environment="ENVIRONMENT=production"
+Environment="COOKIE_SECURE=false"
+Environment="LOGIN_RATE_LIMIT_MAX=5"
+Environment="LOGIN_RATE_LIMIT_WINDOW=300"
 ExecStart=/usr/bin/python3 -m uvicorn main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=3

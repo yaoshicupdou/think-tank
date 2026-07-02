@@ -24,7 +24,7 @@ function Login() {
         throw new Error(msg)
       }
       const data = await res.json()
-      localStorage.setItem('token', data.access_token)
+      // Token 由后端通过 httpOnly cookie 自动管理
       localStorage.setItem('username', data.username)
       localStorage.setItem('is_admin', data.is_admin ? '1' : '')
       window.location.href = '/chat'

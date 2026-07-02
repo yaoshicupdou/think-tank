@@ -21,6 +21,10 @@ class Settings:
     TOP_K = int(os.getenv("TOP_K", "8"))
     SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.65"))
     JWT_SECRET = os.getenv("JWT_SECRET", "thinktank-jwt-secret-change-in-production")
+    LOGIN_RATE_LIMIT_MAX = int(os.getenv("LOGIN_RATE_LIMIT_MAX", "5"))
+    LOGIN_RATE_LIMIT_WINDOW = int(os.getenv("LOGIN_RATE_LIMIT_WINDOW", "300"))
+    ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+    COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 
 @lru_cache()
 def get_settings():

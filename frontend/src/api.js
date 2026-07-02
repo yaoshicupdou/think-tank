@@ -1,4 +1,4 @@
-import { getTokenExp } from './utils/jwt'
+import { getTokenExpCookie } from './utils/cookie'
 
 const BASE = '/api/v1'
 
@@ -8,24 +8,15 @@ function handleAuthExpired() {
 }
 
 function authHeaders() {
-  const headers = { 'Content-Type': 'application/json' }
-  const token = localStorage.getItem('token')
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  return headers
+  return { 'Content-Type': 'application/json' }
 }
 
 let refreshPromise = null
 
 async function doRefresh() {
-  const token = localStorage.getItem('token')
   const res = await fetch(`${BASE}/auth/refresh`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
   })
   if (res.status === 401 || res.status === 403) {
     handleAuthExpired()
@@ -33,16 +24,11 @@ async function doRefresh() {
   }
   if (!res.ok) throw new Error(await res.text())
   const data = await res.json()
-  localStorage.setItem('token', data.access_token)
-  if (data.username) localStorage.setItem('username', data.username)
   return data.access_token
 }
 
 export async function ensureValidToken() {
-  const token = localStorage.getItem('token')
-  if (!token) return
-
-  const exp = getTokenExp(token)
+  const exp = getTokenExpCookie()
   if (!exp) return
 
   const now = Math.floor(Date.now() / 1000)
@@ -59,12 +45,8 @@ export async function uploadFile(file, groupName = '') {
   const form = new FormData()
   form.append('file', file)
   if (groupName) form.append('group_name', groupName)
-  const headers = {}
-  const token = localStorage.getItem('token')
-  if (token) headers['Authorization'] = `Bearer ${token}`
   const res = await fetch(`${BASE}/documents/upload`, {
     method: 'POST',
-    headers,
     body: form,
   })
   if (res.status === 401 || res.status === 403) { handleAuthExpired(); return }
@@ -93,13 +75,10 @@ export async function deleteDocument(id) {
 
 export async function chatStream(query, onSource, onChunk, onDone, onError) {
   await ensureValidToken()
-  const token = localStorage.getItem('token')
-  const headers = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
 
   return fetch(`${BASE}/chat/stream`, {
     method: 'POST',
-    headers,
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query }),
   }).then(async (response) => {
     if (response.status === 401 || response.status === 403) { handleAuthExpired(); return }

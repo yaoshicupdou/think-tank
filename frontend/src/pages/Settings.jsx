@@ -36,13 +36,9 @@ function PasswordTab() {
     setPwdErr('')
     try {
       await ensureValidToken()
-      const token = localStorage.getItem('token')
       const res = await fetch('/api/v1/auth/password', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ old_password: oldPwd, new_password: newPwd }),
       })
       const data = await res.json()

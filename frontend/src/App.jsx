@@ -7,12 +7,10 @@ import Login from './pages/Login'
 import SettingsPage from './pages/Settings'
 import Visualize from './pages/Visualize'
 import { ensureValidToken } from './api'
-import { getTokenExp } from './utils/jwt'
+import { getTokenExpCookie } from './utils/cookie'
 
 function isLoggedIn() {
-  const token = localStorage.getItem('token')
-  if (!token) return false
-  const exp = getTokenExp(token)
+  const exp = getTokenExpCookie()
   if (!exp) return false
   return Date.now() / 1000 < exp
 }
@@ -28,8 +26,8 @@ function RequireAuth({ children }) {
 function Sidebar({ open, onClose }) {
   const username = localStorage.getItem('username') || 'admin'
 
-  const handleLogout = () => {
-    localStorage.removeItem('token')
+  const handleLogout = async () => {
+    await fetch('/api/v1/auth/logout', { method: 'POST' })
     localStorage.removeItem('username')
     localStorage.removeItem('is_admin')
     window.location.href = '/login'
@@ -147,8 +145,8 @@ function AppLayout() {
     ensureValidToken().catch(() => {})
   }, [])
 
-  const handleExpiredConfirm = () => {
-    localStorage.removeItem('token')
+  const handleExpiredConfirm = async () => {
+    await fetch('/api/v1/auth/logout', { method: 'POST' })
     localStorage.removeItem('username')
     localStorage.removeItem('is_admin')
     window.location.href = '/login'

@@ -46,6 +46,9 @@ app = FastAPI(
     description="企业本地知识库 RAG 服务",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url=None if settings.ENVIRONMENT == "production" else "/docs",
+    redoc_url=None if settings.ENVIRONMENT == "production" else "/redoc",
+    openapi_url=None if settings.ENVIRONMENT == "production" else "/openapi.json",
 )
 
 app.add_middleware(
@@ -59,24 +62,21 @@ app.add_middleware(
 
 @app.middleware("http")
 async def auth_middleware(request, call_next):
-    # 静态文件、文档、健康检查、登录接口不需要认证
-    public_paths = {"/docs", "/openapi.json", "/health"}
+    # 静态文件、健康检查、登录接口不需要认证
+    # /docs 和 /openapi.json 仅在非 production 环境下公开
+    public_paths = {"/health"}
+    if settings.ENVIRONMENT != "production":
+        public_paths.update({"/docs", "/openapi.json"})
     if request.url.path in public_paths or request.url.path.startswith("/api/v1/auth/"):
         return await call_next(request)
 
     if not request.url.path.startswith("/api/"):
         return await call_next(request)
 
-    # 验证 JWT Bearer token
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        from jose import jwt as jose_jwt
-        try:
-            token = auth_header.removeprefix("Bearer ")
-            jose_jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
-            return await call_next(request)
-        except Exception:
-            pass
+    from app.core.security import extract_token_from_request, decode_token
+    token = extract_token_from_request(request)
+    if token and decode_token(token):
+        return await call_next(request)
 
     from fastapi.responses import JSONResponse
     return JSONResponse(status_code=403, content={"detail": "未授权访问"})
