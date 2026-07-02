@@ -227,6 +227,14 @@ export async function searchSimilarity(query) {
   return res.json()
 }
 
+export async function fetchAnalytics() {
+  await ensureValidToken()
+  const res = await fetch(`${BASE}/viz/analytics`, { headers: authHeaders() })
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return null }
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
 export async function updateDocumentGroup(id, groupName) {
   await ensureValidToken()
   const res = await fetch(`${BASE}/admin/documents/${id}`, {
