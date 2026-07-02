@@ -9,13 +9,13 @@ from passlib.context import CryptContext
 from app.db.database import get_db
 from app.models.user import User
 from app.core.config import settings
+from app.services.config_service import config_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 24
 
 
 class LoginRequest(BaseModel):
@@ -30,17 +30,14 @@ class LoginResponse(BaseModel):
     is_admin: bool
 
 
-class UpdateProfileRequest(BaseModel):
-    username: str
-
-
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
 
 
 def create_access_token(user_id: int, username: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    hours = int(config_service.get("token_expire_hours", "24"))
+    expire = datetime.now(timezone.utc) + timedelta(hours=hours)
     to_encode = {"sub": str(user_id), "username": username, "exp": expire}
     return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=ALGORITHM)
 
@@ -61,6 +58,13 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=401, detail="用户不存在")
+    return user
+
+
+def require_admin(request: Request, db: Session = Depends(get_db)) -> User:
+    user = get_current_user(request, db)
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="需要管理员权限")
     return user
 
 
@@ -106,28 +110,12 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/me")
 def me(current_user: User = Depends(get_current_user)):
-    return {"id": current_user.id, "username": current_user.username, "is_admin": current_user.is_admin}
-
-
-@router.put("/profile")
-def update_profile(
-    req: UpdateProfileRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    existing = db.query(User).filter(User.username == req.username).first()
-    if existing and existing.id != current_user.id:
-        raise HTTPException(status_code=409, detail="用户名已被占用")
-
-    current_user.username = req.username
-    db.commit()
-    db.refresh(current_user)
-
-    # 签发新 Token（用户名变了，JWT 里也要更新）
-    token = create_access_token(current_user.id, current_user.username)
     return {
+        "id": current_user.id,
         "username": current_user.username,
-        "access_token": token,
+        "is_admin": current_user.is_admin,
+        "can_upload": current_user.can_upload,
+        "group_name": current_user.group_name,
     }
 
 

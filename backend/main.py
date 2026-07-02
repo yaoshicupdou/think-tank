@@ -8,7 +8,10 @@ from fastapi.staticfiles import StaticFiles
 from app.db.database import engine, Base, SessionLocal
 from app.routers import documents, chat, auth
 from app.models.user import User
+from app.models.document import Document
+from app.models.system_config import SystemConfig
 from app.core.config import settings
+from app.services.config_service import config_service
 from passlib.context import CryptContext
 
 
@@ -34,6 +37,7 @@ def seed_admin():
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     seed_admin()
+    config_service.init_defaults()
     yield
 
 
@@ -87,6 +91,8 @@ def health_check():
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(documents.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
+from app.routers import admin
+app.include_router(admin.router, prefix="/api/v1")
 
 # SPA fallback: 前端静态文件（生产模式）
 frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")

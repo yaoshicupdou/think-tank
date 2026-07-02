@@ -11,9 +11,12 @@ class Document(Base):
     filename = Column(String(255), nullable=False)
     file_path = Column(String(512), nullable=False)
     status = Column(String(50), default="pending")
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    group_name = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
+    owner = relationship("User")
 
 class Chunk(Base):
     __tablename__ = "chunks"

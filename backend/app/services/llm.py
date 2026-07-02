@@ -2,7 +2,7 @@ import asyncio
 import json
 import httpx
 from typing import AsyncIterator
-from app.core.config import settings
+from app.services.config_service import config_service
 
 import logging
 logger = logging.getLogger("llm")
@@ -10,18 +10,23 @@ logger = logging.getLogger("llm")
 
 class LLMService:
     def __init__(self):
-        self.api_key = settings.LLM_API_KEY
-        self.base_url = settings.LLM_BASE_URL.rstrip("/")
-        self.model = settings.LLM_MODEL
         self.max_retries = 3
 
+    def _load_config(self):
+        return {
+            "api_key": config_service.get("llm_api_key", ""),
+            "base_url": config_service.get("llm_base_url", "https://api.moonshot.cn/v1").rstrip("/"),
+            "model": config_service.get("llm_model", "moonshot-v1-8k"),
+        }
+
     async def chat_stream(self, system_prompt: str, user_prompt: str) -> AsyncIterator[str]:
+        cfg = self._load_config()
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {cfg['api_key']}",
             "Content-Type": "application/json"
         }
         payload = {
-            "model": self.model,
+            "model": cfg["model"],
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -33,7 +38,7 @@ class LLMService:
         try:
             for attempt in range(self.max_retries):
                 response = await client.send(
-                    client.build_request("POST", f"{self.base_url}/chat/completions", headers=headers, json=payload),
+                    client.build_request("POST", f"{cfg['base_url']}/chat/completions", headers=headers, json=payload),
                     stream=True,
                 )
                 if response.status_code == 429:

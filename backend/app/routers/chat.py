@@ -8,6 +8,8 @@ from app.schemas.document import ChatRequest
 from app.services.retriever import Retriever
 from app.services.llm import LLMService
 from app.models.document import Chunk
+from app.models.user import User
+from app.routers.auth import get_current_user
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -36,8 +38,12 @@ def _extract_date_chunks(db: Session, doc_ids: set, exclude_ids: set, limit: int
     return extra
 
 @router.post("/stream")
-async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
-    retriever = Retriever(db)
+async def chat_stream(
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    retriever = Retriever(db, user=current_user)
     results = retriever.search(request.query)
 
     # 调试日志

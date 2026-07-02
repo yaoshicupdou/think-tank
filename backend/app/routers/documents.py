@@ -2,12 +2,14 @@ import os
 import uuid
 import shutil
 from typing import List
-from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks, HTTPException, Form
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.core.config import settings
 from app.models.document import Document
+from app.models.user import User
 from app.schemas.document import DocumentResponse
+from app.routers.auth import get_current_user
 from app.services.parser import Parser
 from app.services.chunker import Chunker
 from app.services.embedding import EmbeddingService
@@ -18,8 +20,13 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 async def upload_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    group_name: str = Form(""),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    if not current_user.can_upload:
+        raise HTTPException(status_code=403, detail="无上传权限")
+
     ext = os.path.splitext(file.filename)[1]
     save_name = f"{uuid.uuid4().hex}{ext}"
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
@@ -28,7 +35,14 @@ async def upload_file(
     with open(file_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    doc = Document(filename=file.filename, file_path=file_path, status="pending")
+    gn = group_name.strip() if group_name.strip() else None
+    doc = Document(
+        filename=file.filename,
+        file_path=file_path,
+        status="pending",
+        owner_id=current_user.id,
+        group_name=gn,
+    )
     db.add(doc)
     db.commit()
     db.refresh(doc)
@@ -85,19 +99,37 @@ def process_document_task(file_path: str, doc_id: int):
         db.close()
 
 
+def _accessible_docs(db: Session, user: User):
+    q = db.query(Document)
+    if not user.is_admin:
+        if user.group_name:
+            from sqlalchemy import or_
+            q = q.filter(or_(Document.group_name == user.group_name, Document.group_name == None))
+        else:
+            q = q.filter(Document.group_name == None)
+    return q
+
+
 @router.get("/", response_model=List[DocumentResponse])
-def list_documents(db: Session = Depends(get_db)):
-    return db.query(Document).order_by(Document.created_at.desc()).all()
+def list_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return _accessible_docs(db, current_user).order_by(Document.created_at.desc()).all()
 
 
 @router.post("/{doc_id}/reprocess")
-def reprocess_document(doc_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
+def reprocess_document(
+    doc_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    doc = _accessible_docs(db, current_user).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     if not os.path.exists(doc.file_path):
         raise HTTPException(status_code=400, detail="File not found on disk")
-    # 删除旧 chunk
     from app.models.document import Chunk
     db.query(Chunk).filter(Chunk.document_id == doc_id).delete()
     doc.status = "pending"
@@ -107,8 +139,12 @@ def reprocess_document(doc_id: int, background_tasks: BackgroundTasks, db: Sessi
 
 
 @router.delete("/{doc_id}")
-def delete_document(doc_id: int, db: Session = Depends(get_db)):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
+def delete_document(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    doc = _accessible_docs(db, current_user).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     if os.path.exists(doc.file_path):

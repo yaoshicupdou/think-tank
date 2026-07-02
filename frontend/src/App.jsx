@@ -30,6 +30,7 @@ function Sidebar({ open, onClose }) {
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('username')
+    localStorage.removeItem('is_admin')
     window.location.href = '/login'
   }
 
@@ -147,6 +148,7 @@ function AppLayout() {
   const handleExpiredConfirm = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('username')
+    localStorage.removeItem('is_admin')
     window.location.href = '/login'
   }
 

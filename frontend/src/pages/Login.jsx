@@ -26,6 +26,7 @@ function Login() {
       const data = await res.json()
       localStorage.setItem('token', data.access_token)
       localStorage.setItem('username', data.username)
+      localStorage.setItem('is_admin', data.is_admin ? '1' : '')
       window.location.href = '/chat'
     } catch (err) {
       setError(err.message)

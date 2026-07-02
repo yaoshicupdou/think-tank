@@ -130,3 +130,68 @@ export async function chatStream(query, onSource, onChunk, onDone, onError) {
     onDone()
   }).catch(err => onError(err.message))
 }
+
+// ── Admin APIs ──────────────────────────────────────────
+
+export async function getSystemConfig() {
+  await ensureValidToken()
+  const res = await fetch(`${BASE}/admin/config`, { headers: authHeaders() })
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return null }
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function updateSystemConfig(data) {
+  await ensureValidToken()
+  const res = await fetch(`${BASE}/admin/config`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  })
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return }
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function listUsers() {
+  await ensureValidToken()
+  const res = await fetch(`${BASE}/admin/users`, { headers: authHeaders() })
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return [] }
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function createUser(data) {
+  await ensureValidToken()
+  const res = await fetch(`${BASE}/admin/users`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  })
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return }
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function updateUser(id, data) {
+  await ensureValidToken()
+  const res = await fetch(`${BASE}/admin/users/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  })
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return }
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function deleteUser(id) {
+  await ensureValidToken()
+  const res = await fetch(`${BASE}/admin/users/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return }
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
