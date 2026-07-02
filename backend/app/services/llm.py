@@ -15,40 +15,6 @@ class LLMService:
         self.model = settings.LLM_MODEL
         self.max_retries = 3
 
-    async def _stream_request(self, headers, payload) -> httpx.Response:
-        """发起流式请求，429 时自动重试（指数退避）。"""
-        last_error = None
-        for attempt in range(self.max_retries):
-            try:
-                async with httpx.AsyncClient(timeout=60.0) as client:
-                    async with client.stream(
-                        "POST",
-                        f"{self.base_url}/chat/completions",
-                        headers=headers,
-                        json=payload
-                    ) as response:
-                        if response.status_code == 429:
-                            last_error = response
-                            wait = 2 ** attempt
-                            logger.warning(f"Kimi 429 rate limit, retry in {wait}s (attempt {attempt + 1}/{self.max_retries})")
-                            await asyncio.sleep(wait)
-                            continue
-                        response.raise_for_status()
-                        return response
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
-                    last_error = e.response
-                    wait = 2 ** attempt
-                    logger.warning(f"Kimi 429 rate limit, retry in {wait}s (attempt {attempt + 1}/{self.max_retries})")
-                    await asyncio.sleep(wait)
-                    continue
-                raise
-        raise httpx.HTTPStatusError(
-            "429 rate limited after retries",
-            request=last_error.request if last_error else None,
-            response=last_error
-        ) if hasattr(last_error, 'request') else Exception("429 rate limited after retries")
-
     async def chat_stream(self, system_prompt: str, user_prompt: str) -> AsyncIterator[str]:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -63,8 +29,25 @@ class LLMService:
             "stream": True
         }
 
+        client = httpx.AsyncClient(timeout=60.0)
         try:
-            response = await self._stream_request(headers, payload)
+            for attempt in range(self.max_retries):
+                response = await client.send(
+                    client.build_request("POST", f"{self.base_url}/chat/completions", headers=headers, json=payload),
+                    stream=True,
+                )
+                if response.status_code == 429:
+                    wait = 2 ** attempt
+                    logger.warning(f"Kimi 429 rate limit, retry in {wait}s (attempt {attempt + 1}/{self.max_retries})")
+                    await response.aclose()
+                    await asyncio.sleep(wait)
+                    continue
+                response.raise_for_status()
+                break
+            else:
+                yield "data: " + json.dumps({"error": "LLM 请求过于频繁，请稍后重试"}) + "\n\n"
+                return
+
             async for line in response.aiter_lines():
                 if line:
                     if line.startswith("data: "):
@@ -77,3 +60,5 @@ class LLMService:
             yield "data: " + json.dumps({"error": f"LLM request error: {str(e)}"}) + "\n\n"
         except Exception as e:
             yield "data: " + json.dumps({"error": f"LLM unexpected error: {str(e)}"}) + "\n\n"
+        finally:
+            await client.aclose()
