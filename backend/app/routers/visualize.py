@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
-from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 import numpy as np
 
 from app.db.database import get_db
@@ -40,9 +40,10 @@ def get_embeddings(
     # Reduce from 1024 to min(2, n_samples-1) dimensions
     n_components = min(2, vectors.shape[0] - 1) if vectors.shape[0] > 1 else 0
 
+    n_components = min(2, vectors.shape[0] - 1) if vectors.shape[0] > 1 else 0
     if n_components >= 2:
-        pca = PCA(n_components=2)
-        coords = pca.fit_transform(vectors)
+        tsne = TSNE(n_components=2, perplexity=min(30, vectors.shape[0] - 1), random_state=42)
+        coords = tsne.fit_transform(vectors)
     else:
         coords = np.zeros((vectors.shape[0], 2))
 
