@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.db.database import engine, Base, SessionLocal
-from app.routers import documents, chat, auth
+from app.routers import documents, chat, auth, visualize
 from app.models.user import User
 from app.models.document import Document
 from app.models.system_config import SystemConfig
@@ -93,6 +93,7 @@ app.include_router(documents.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
 from app.routers import admin
 app.include_router(admin.router, prefix="/api/v1")
+app.include_router(visualize.router, prefix="/api/v1")
 
 # SPA fallback: 前端静态文件（生产模式）
 frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")

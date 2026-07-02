@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
-import { FileText, MessageSquare, Brain, LogOut, User, Settings } from 'lucide-react'
+import { FileText, MessageSquare, Brain, LogOut, User, Settings, BarChart3 } from 'lucide-react'
 import Documents from './pages/Documents'
 import Chat from './pages/Chat'
 import Login from './pages/Login'
 import SettingsPage from './pages/Settings'
+import Visualize from './pages/Visualize'
 import { ensureValidToken } from './api'
 import { getTokenExp } from './utils/jwt'
 
@@ -37,6 +38,7 @@ function Sidebar({ open, onClose }) {
   const mainLinks = [
     { to: '/documents', icon: FileText, label: '文档管理' },
     { to: '/chat', icon: MessageSquare, label: '知识库对话' },
+    { to: '/visualize', icon: BarChart3, label: '知识库可视化' },
   ]
 
   return (
@@ -168,6 +170,7 @@ function AppLayout() {
         <Routes>
           <Route path="/documents" element={<Documents />} />
           <Route path="/chat" element={<Chat />} />
+          <Route path="/visualize" element={<Visualize />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/chat" replace />} />
         </Routes>

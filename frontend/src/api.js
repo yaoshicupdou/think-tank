@@ -205,6 +205,28 @@ export async function listGroups() {
   return res.json()
 }
 
+// ── Visualization APIs ────────────────────────────────────
+
+export async function fetchEmbeddings() {
+  await ensureValidToken()
+  const res = await fetch(`${BASE}/viz/embeddings`, { headers: authHeaders() })
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return null }
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function searchSimilarity(query) {
+  await ensureValidToken()
+  const res = await fetch(`${BASE}/viz/similarity`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ query }),
+  })
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return null }
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
 export async function updateDocumentGroup(id, groupName) {
   await ensureValidToken()
   const res = await fetch(`${BASE}/admin/documents/${id}`, {
