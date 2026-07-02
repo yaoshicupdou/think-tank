@@ -1,3 +1,5 @@
+import { getTokenExp } from './utils/jwt'
+
 const BASE = '/api/v1'
 
 function handleAuthExpired() {
@@ -14,7 +16,46 @@ function authHeaders() {
   return headers
 }
 
+let refreshPromise = null
+
+async function doRefresh() {
+  const token = localStorage.getItem('token')
+  const res = await fetch(`${BASE}/auth/refresh`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+  if (res.status === 401 || res.status === 403) {
+    handleAuthExpired()
+    return
+  }
+  if (!res.ok) throw new Error(await res.text())
+  const data = await res.json()
+  localStorage.setItem('token', data.access_token)
+  if (data.username) localStorage.setItem('username', data.username)
+  return data.access_token
+}
+
+export async function ensureValidToken() {
+  const token = localStorage.getItem('token')
+  if (!token) return
+
+  const exp = getTokenExp(token)
+  if (!exp) return
+
+  const now = Math.floor(Date.now() / 1000)
+  if (exp - now > 3600) return
+
+  if (!refreshPromise) {
+    refreshPromise = doRefresh().finally(() => { refreshPromise = null })
+  }
+  await refreshPromise
+}
+
 export async function uploadFile(file) {
+  await ensureValidToken()
   const form = new FormData()
   form.append('file', file)
   const headers = {}
@@ -31,6 +72,7 @@ export async function uploadFile(file) {
 }
 
 export async function listDocuments() {
+  await ensureValidToken()
   const res = await fetch(`${BASE}/documents/`, { headers: authHeaders() })
   if (res.status === 401 || res.status === 403) { handleAuthExpired(); return [] }
   if (!res.ok) throw new Error(await res.text())
@@ -38,6 +80,7 @@ export async function listDocuments() {
 }
 
 export async function deleteDocument(id) {
+  await ensureValidToken()
   const res = await fetch(`${BASE}/documents/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
@@ -47,7 +90,8 @@ export async function deleteDocument(id) {
   return res.json()
 }
 
-export function chatStream(query, onSource, onChunk, onDone, onError) {
+export async function chatStream(query, onSource, onChunk, onDone, onError) {
+  await ensureValidToken()
   const token = localStorage.getItem('token')
   const headers = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`

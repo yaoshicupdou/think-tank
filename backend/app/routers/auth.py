@@ -78,6 +78,32 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/refresh", response_model=LoginResponse)
+def refresh_token(request: Request, db: Session = Depends(get_db)):
+    """使用当前有效 token 换取新 token，实现自动续期。"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="缺少认证令牌")
+
+    token = auth_header.removeprefix("Bearer ")
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[ALGORITHM])
+        user_id = int(payload.get("sub"))
+    except Exception:
+        raise HTTPException(status_code=401, detail="令牌无效或已过期")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="用户不存在")
+
+    new_token = create_access_token(user.id, user.username)
+    return LoginResponse(
+        access_token=new_token,
+        username=user.username,
+        is_admin=user.is_admin,
+    )
+
+
 @router.get("/me")
 def me(current_user: User = Depends(get_current_user)):
     return {"id": current_user.id, "username": current_user.username, "is_admin": current_user.is_admin}

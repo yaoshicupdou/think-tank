@@ -5,9 +5,15 @@ import Documents from './pages/Documents'
 import Chat from './pages/Chat'
 import Login from './pages/Login'
 import SettingsPage from './pages/Settings'
+import { ensureValidToken } from './api'
+import { getTokenExp } from './utils/jwt'
 
 function isLoggedIn() {
-  return !!localStorage.getItem('token')
+  const token = localStorage.getItem('token')
+  if (!token) return false
+  const exp = getTokenExp(token)
+  if (!exp) return false
+  return Date.now() / 1000 < exp
 }
 
 function RequireAuth({ children }) {
@@ -132,6 +138,10 @@ function AppLayout() {
     const handler = () => setShowExpired(true)
     window.addEventListener('auth:expired', handler)
     return () => window.removeEventListener('auth:expired', handler)
+  }, [])
+
+  useEffect(() => {
+    ensureValidToken().catch(() => {})
   }, [])
 
   const handleExpiredConfirm = () => {

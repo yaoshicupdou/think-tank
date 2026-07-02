@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Settings as SettingsIcon, Loader2, Check } from 'lucide-react'
+import { ensureValidToken } from '../api'
 
 function Settings() {
   const [username, setUsername] = useState(localStorage.getItem('username') || '')
@@ -13,7 +14,8 @@ function Settings() {
   const [pwdErr, setPwdErr] = useState('')
   const [savingPwd, setSavingPwd] = useState(false)
 
-  const authFetch = (url, opts = {}) => {
+  const authFetch = async (url, opts = {}) => {
+    await ensureValidToken()
     const token = localStorage.getItem('token')
     return fetch(url, {
       ...opts,
