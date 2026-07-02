@@ -23,7 +23,10 @@ function Settings() {
         ...opts.headers,
       },
     }).then(async (res) => {
-      if (res.status === 401) { window.location.href = '/login'; return {} }
+      if (res.status === 401 || res.status === 403) {
+        window.dispatchEvent(new CustomEvent('auth:expired'))
+        throw new Error('认证已过期')
+      }
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || '请求失败')
       return data

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
 import { FileText, MessageSquare, Brain, LogOut, User, Settings } from 'lucide-react'
 import Documents from './pages/Documents'
@@ -103,11 +103,46 @@ function Sidebar({ open, onClose }) {
   )
 }
 
+function ExpiredDialog({ open, onConfirm }) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60" />
+      <div className="relative bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+        <h2 className="text-lg font-semibold text-gray-100 mb-2">登录已过期</h2>
+        <p className="text-sm text-gray-400 mb-6">
+          您的登录状态已过期，请重新登录以继续使用。
+        </p>
+        <button
+          onClick={onConfirm}
+          className="w-full px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          重新登录
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showExpired, setShowExpired] = useState(false)
+
+  useEffect(() => {
+    const handler = () => setShowExpired(true)
+    window.addEventListener('auth:expired', handler)
+    return () => window.removeEventListener('auth:expired', handler)
+  }, [])
+
+  const handleExpiredConfirm = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('username')
+    window.location.href = '/login'
+  }
 
   return (
     <div className="flex h-screen">
+      <ExpiredDialog open={showExpired} onConfirm={handleExpiredConfirm} />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="flex-1 overflow-auto">
         <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-gray-800">

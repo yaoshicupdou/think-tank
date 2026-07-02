@@ -1,5 +1,10 @@
 const BASE = '/api/v1'
 
+function handleAuthExpired() {
+  window.dispatchEvent(new CustomEvent('auth:expired'))
+  throw new Error('认证已过期')
+}
+
 function authHeaders() {
   const headers = { 'Content-Type': 'application/json' }
   const token = localStorage.getItem('token')
@@ -20,14 +25,14 @@ export async function uploadFile(file) {
     headers,
     body: form,
   })
-  if (res.status === 401) { window.location.href = '/login'; return }
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return }
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
 export async function listDocuments() {
   const res = await fetch(`${BASE}/documents/`, { headers: authHeaders() })
-  if (res.status === 401) { window.location.href = '/login'; return [] }
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return [] }
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
@@ -37,7 +42,7 @@ export async function deleteDocument(id) {
     method: 'DELETE',
     headers: authHeaders(),
   })
-  if (res.status === 401) { window.location.href = '/login'; return }
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return }
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
@@ -52,7 +57,7 @@ export function chatStream(query, onSource, onChunk, onDone, onError) {
     headers,
     body: JSON.stringify({ query }),
   }).then(async (response) => {
-    if (response.status === 401) { window.location.href = '/login'; return }
+    if (response.status === 401 || response.status === 403) { handleAuthExpired(); return }
     if (!response.ok) { onError(`HTTP ${response.status}`); return }
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
