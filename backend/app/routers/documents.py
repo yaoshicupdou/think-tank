@@ -76,16 +76,29 @@ def process_document_task(file_path: str, doc_id: int):
 
         embed_service = EmbeddingService.get_instance()
 
-        for chunk_data in chunks_data:
-            emb = embed_service.encode(chunk_data["content"])
+        # 批量向量化：先收集所有文本，一次 batch encode
+        contents = [c["content"] for c in chunks_data]
+        batch_size = 32
+        all_embeddings = []
+
+        for i in range(0, len(contents), batch_size):
+            batch = contents[i:i + batch_size]
+            embs = embed_service.encode_batch(batch)
+            all_embeddings.extend(embs)
+
+        # 写入数据库
+        for idx, chunk_data in enumerate(chunks_data):
             chunk = Chunk(
                 document_id=doc_id,
                 content=chunk_data["content"],
                 page_num=chunk_data.get("page_num"),
                 meta_info=str(chunk_data.get("meta")),
-                embedding=emb.tolist()
+                embedding=all_embeddings[idx].tolist()
             )
             db.add(chunk)
+            # 每 500 条提交一次，避免 session 膨胀
+            if (idx + 1) % 500 == 0:
+                db.commit()
 
         doc.status = "completed"
         db.commit()
