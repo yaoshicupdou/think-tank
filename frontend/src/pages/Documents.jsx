@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Upload, FileText, Trash2, Loader2, CheckCircle, XCircle, Clock } from 'lucide-react'
-import { listDocuments, uploadFile, deleteDocument } from '../api'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Upload, FileText, Trash2, Loader2, CheckCircle, XCircle, Clock, X } from 'lucide-react'
+import { listDocuments, uploadFile, deleteDocument, listGroups } from '../api'
 
 const statusIcon = {
   completed: <CheckCircle className="w-4 h-4 text-green-400" />,
@@ -20,6 +20,11 @@ function Documents() {
   const [docs, setDocs] = useState([])
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const [showDialog, setShowDialog] = useState(false)
+  const [groups, setGroups] = useState([])
+  const [selectedGroup, setSelectedGroup] = useState('')
+  const [selectedFile, setSelectedFile] = useState(null)
+  const fileRef = useRef(null)
 
   const loadDocs = useCallback(async () => {
     try {
@@ -29,20 +34,31 @@ function Documents() {
 
   useEffect(() => { loadDocs() }, [loadDocs])
 
-  const handleUpload = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const openDialog = () => {
+    listGroups().then(g => setGroups(g || [])).catch(() => {})
+    setSelectedGroup('')
+    setSelectedFile(null)
+    setError('')
+    setShowDialog(true)
+  }
+
+  const handleFileChange = (e) => {
+    setSelectedFile(e.target.files?.[0] || null)
+  }
+
+  const handleUpload = async () => {
+    if (!selectedFile) return
     setUploading(true)
     setError('')
     try {
-      await uploadFile(file)
+      await uploadFile(selectedFile, selectedGroup)
+      setShowDialog(false)
       await loadDocs()
-      setTimeout(loadDocs, 3000)  // 等后台处理完再刷新
+      setTimeout(loadDocs, 3000)
     } catch (err) {
       setError(err.message)
     } finally {
       setUploading(false)
-      e.target.value = ''
     }
   }
 
@@ -59,28 +75,57 @@ function Documents() {
     <div className="max-w-3xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">文档管理</h1>
-        <label className={`
-          inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors
-          ${uploading ? 'bg-gray-700 text-gray-400' : 'bg-purple-600 hover:bg-purple-700 text-white'}
-        `}>
-          {uploading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              上传中...
-            </>
-          ) : (
-            <>
-              <Upload className="w-4 h-4" />
-              上传文档
-            </>
-          )}
-          <input type="file" className="hidden" onChange={handleUpload} disabled={uploading}
-            accept=".pdf,.txt,.md,.doc,.docx" />
-        </label>
+        <button
+          onClick={openDialog}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+        >
+          <Upload className="w-4 h-4" />
+          上传文档
+        </button>
       </div>
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-sm text-red-400">{error}</div>
+      )}
+
+      {/* Upload dialog */}
+      {showDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowDialog(false)} />
+          <div className="relative bg-gray-900 border border-gray-700 rounded-xl p-5 max-w-sm w-full mx-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-gray-200">上传文档</h3>
+              <button onClick={() => setShowDialog(false)} className="text-gray-500 hover:text-gray-300">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5">可访问的用户分组</label>
+              <select value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-purple-500">
+                <option value="">公开（所有用户可见）</option>
+                {groups.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5">选择文件</label>
+              <input ref={fileRef} type="file" onChange={handleFileChange}
+                accept=".pdf,.txt,.md,.doc,.docx"
+                className="w-full text-sm text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-gray-700 file:text-gray-200 hover:file:bg-gray-600 file:cursor-pointer" />
+            </div>
+
+            <button
+              onClick={handleUpload}
+              disabled={uploading || !selectedFile}
+              className="w-full px-4 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {uploading ? '上传中...' : '确认上传'}
+            </button>
+          </div>
+        </div>
       )}
 
       {docs.length === 0 ? (

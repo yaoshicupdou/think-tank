@@ -5,6 +5,7 @@ from passlib.context import CryptContext
 
 from app.db.database import get_db
 from app.models.user import User
+from app.models.document import Document
 from app.routers.auth import require_admin, get_current_user
 from app.services.config_service import config_service
 
@@ -158,3 +159,25 @@ def delete_user(user_id: int, request: Request, db: Session = Depends(get_db)):
     db.delete(user)
     db.commit()
     return {"message": "用户已删除"}
+
+
+# ── Document permission endpoints ─────────────────────────
+
+class UpdateDocGroupRequest(BaseModel):
+    group_name: str | None = None
+
+
+@router.get("/groups")
+def list_groups(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    rows = db.query(User.group_name).filter(User.group_name != None).distinct().all()
+    return [r[0] for r in rows if r[0]]
+
+
+@router.put("/documents/{doc_id}")
+def update_doc_group(doc_id: int, req: UpdateDocGroupRequest, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="文档不存在")
+    doc.group_name = req.group_name if req.group_name else None
+    db.commit()
+    return {"message": "文档分组已更新"}

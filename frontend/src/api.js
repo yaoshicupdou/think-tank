@@ -54,10 +54,11 @@ export async function ensureValidToken() {
   await refreshPromise
 }
 
-export async function uploadFile(file) {
+export async function uploadFile(file, groupName = '') {
   await ensureValidToken()
   const form = new FormData()
   form.append('file', file)
+  if (groupName) form.append('group_name', groupName)
   const headers = {}
   const token = localStorage.getItem('token')
   if (token) headers['Authorization'] = `Bearer ${token}`
@@ -190,6 +191,26 @@ export async function deleteUser(id) {
   const res = await fetch(`${BASE}/admin/users/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
+  })
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return }
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function listGroups() {
+  await ensureValidToken()
+  const res = await fetch(`${BASE}/admin/groups`, { headers: authHeaders() })
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return [] }
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function updateDocumentGroup(id, groupName) {
+  await ensureValidToken()
+  const res = await fetch(`${BASE}/admin/documents/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ group_name: groupName || null }),
   })
   if (res.status === 401 || res.status === 403) { handleAuthExpired(); return }
   if (!res.ok) throw new Error(await res.text())

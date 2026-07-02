@@ -6,6 +6,7 @@ class DocumentResponse(BaseModel):
     id: int
     filename: str
     status: str
+    group_name: str | None = None
     created_at: datetime
 
     class Config:

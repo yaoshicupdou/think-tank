@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Loader2, Check, Trash2, UserPlus, Shield } from 'lucide-react'
-import { ensureValidToken, getSystemConfig, updateSystemConfig, listUsers, createUser, updateUser, deleteUser } from '../api'
+import { Settings as SettingsIcon, Loader2, Check, Trash2, UserPlus, Shield, FileText } from 'lucide-react'
+import { ensureValidToken, getSystemConfig, updateSystemConfig, listUsers, createUser, updateUser, deleteUser, listDocuments, updateDocumentGroup, listGroups } from '../api'
 
 const isAdmin = () => localStorage.getItem('is_admin') === '1'
 
@@ -331,6 +331,78 @@ function UsersTab() {
   )
 }
 
+// ── Tab 4: 文档权限（Admin only）──────────────────────────
+function DocPermsTab() {
+  const [docs, setDocs] = useState([])
+  const [groups, setGroups] = useState([])
+  const [loaded, setLoaded] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    Promise.all([
+      listDocuments(),
+      listGroups().catch(() => []),
+    ]).then(([d, g]) => {
+      setDocs(d || [])
+      setGroups(g || [])
+      setLoaded(true)
+    }).catch(() => setLoaded(true))
+  }, [])
+
+  const handleGroupChange = async (docId, groupName) => {
+    try {
+      await updateDocumentGroup(docId, groupName)
+      setDocs(prev => prev.map(d => d.id === docId ? { ...d, group_name: groupName } : d))
+      setMsg(`${docId} 分组已更新`)
+      setTimeout(() => setMsg(''), 2000)
+    } catch { /* ignore */ }
+  }
+
+  if (!loaded) return <div className="text-gray-500 text-sm p-5">加载中...</div>
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
+      <h2 className="text-sm font-medium text-gray-300">文档权限设置</h2>
+      <p className="text-xs text-gray-500">设置每个文档可被哪些分组的用户检索访问。公开文档所有用户可见。</p>
+
+      {msg && <div className="bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-2 text-sm text-green-400 flex items-center gap-2"><Check className="w-3.5 h-3.5" /> {msg}</div>}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-gray-500 border-b border-gray-800">
+              <th className="pb-2 font-normal">文档名称</th>
+              <th className="pb-2 font-normal">当前分组</th>
+              <th className="pb-2 font-normal">更改分组</th>
+            </tr>
+          </thead>
+          <tbody>
+            {docs.map(doc => (
+              <tr key={doc.id} className="border-b border-gray-800/50 text-gray-300">
+                <td className="py-2.5 flex items-center gap-2">
+                  <FileText className="w-3.5 h-3.5 text-gray-500" />
+                  <span className="truncate max-w-[200px]">{doc.filename}</span>
+                </td>
+                <td className="py-2.5 text-gray-400">{doc.group_name || '公开'}</td>
+                <td className="py-2.5">
+                  <select
+                    value={doc.group_name || ''}
+                    onChange={e => handleGroupChange(doc.id, e.target.value)}
+                    className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="">公开</option>
+                    {groups.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 // ── 主组件 ───────────────────────────────────────────────
 export default function Settings() {
   const [tab, setTab] = useState('password')
@@ -348,6 +420,7 @@ export default function Settings() {
           <>
             <TabButton active={tab === 'system'} onClick={() => setTab('system')}>系统设置</TabButton>
             <TabButton active={tab === 'users'} onClick={() => setTab('users')}>用户管理</TabButton>
+            <TabButton active={tab === 'docs'} onClick={() => setTab('docs')}>文档权限</TabButton>
           </>
         )}
       </div>
@@ -355,6 +428,7 @@ export default function Settings() {
       {tab === 'password' && <PasswordTab />}
       {tab === 'system' && <SystemTab />}
       {tab === 'users' && <UsersTab />}
+      {tab === 'docs' && <DocPermsTab />}
     </div>
   )
 }
